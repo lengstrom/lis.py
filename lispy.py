@@ -1,3 +1,18 @@
+class Procedure(object):
+    def __init__(self, params, body, env):
+        self.params, self.body, self.env = params, body, env
+    
+    def __call__(self, *args):
+        return eval(self.body, Env(self.params, args, self.env))
+
+class Env(dict):
+    def __init__(self, params=(), args=(), outer=None):
+        self.update(zip(params, args))
+        self.outer = outer
+
+    def find(self, var):
+        return self if (var in self) else self.outer.find(var)
+
 def tokenize(s):
     r = s.replace("(", " ( ").replace(")", " ) ").split()
     return r
@@ -70,7 +85,6 @@ def standard_env():
 Symbol = str
 List = list
 Number = (int, float)
-Env = dict
 global_env = standard_env()
 
 def eval(exp, env=global_env):
@@ -89,6 +103,12 @@ def eval(exp, env=global_env):
     elif exp[0] == 'define':
         (_, v, e) = exp
         env[v] = eval(e, env)
+    elif exp[0] == 'set!':
+        (_, v, exp) = exp
+        env.find(v)[v] = eval(exp, env)
+    elif exp[0] == 'lambda': #(lambda (r, a) (+ r a))
+        (_, params, body) = exp 
+        return Procedure(params, body, env)
     else:
         procedure = eval(exp[0], env)
         args = [eval(arg, env) for arg in exp[1:]]
@@ -97,22 +117,20 @@ def eval(exp, env=global_env):
 def parse(p): 
     return read_from_tokens(tokenize(p))
 
-class Procedure(object):
-    def __init__(self, params, body, env):
-        self.params, self.body, self.env = params, body, env
-    
-    def __call__(self, *args):
-        return eval(self.body, Env(self.params, args, self.env)
+def repl(prompt='lis.py> '):
+    while True:
+        val = eval(parse(raw_input(prompt)))
+        if val is not None:
+                print schemestr(val)
 
-class Env(dict):
-    def __init__(self, params=(), args=(), outer=None):
-        self.update(zip(params, args))
-        self.outer = outer
-
-    def find(self, var):
-        return self if (var in self) else self.outer.find(var)
+def schemestr(exp):
+    "Convert a Python object back into a Scheme-readable string."
+    if  isinstance(exp, list):
+        return '(' + ' '.join(map(schemestr, exp)) + ')' 
+    else:
+        return str(exp)
 
 if __name__ == '__main__':
-    print(eval(parse("( * (- (+ 3 5) 3) 9)")))
-
+    print(eval(parse("((lambda (r) (* r r)) 9)")))
+    repl()
     
